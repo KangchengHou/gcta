@@ -235,7 +235,7 @@ void read_weight(string phen_file, vector<string> &phen_ID, vector<double> &weig
 }
 
 
-void gcta::fit_reml(string grm_file, string phen_file, string qcovar_file, string covar_file, string qGE_file, string GE_file, string keep_indi_file, string remove_indi_file, string sex_file, int mphen, double grm_cutoff, double adj_grm_fac, int dosage_compen, bool m_grm_flag, bool pred_rand_eff, bool est_fix_eff, int reml_mtd, int MaxIter, vector<double> reml_priors, vector<double> reml_priors_var, vector<int> drop, bool no_lrt, double prevalence, bool no_constrain, bool mlmassoc, bool within_family, bool reml_bending, bool reml_diag_one, string weight_file) {
+void gcta::fit_reml(string grm_file, string phen_file, string qcovar_file, string covar_file, string qGE_file, string GE_file, string keep_indi_file, string remove_indi_file, string sex_file, int mphen, double grm_cutoff, double adj_grm_fac, int dosage_compen, bool m_grm_flag, bool pred_rand_eff, bool est_fix_eff, int reml_mtd, int MaxIter, vector<double> reml_priors, vector<double> reml_priors_var, vector<int> drop, bool no_lrt, double prevalence, bool no_constrain, bool mlmassoc, bool within_family, bool reml_bending, bool reml_diag_one, string weight_file, string res_grm_file) {
     _within_family = within_family;
     _reml_mtd = reml_mtd;
     _reml_max_iter = MaxIter;
@@ -432,6 +432,25 @@ void gcta::fit_reml(string grm_file, string phen_file, string qcovar_file, strin
         */
 
         _A[_r_indx.size() - 1].diagonal() = v_weight;
+    }
+    if(!res_grm_file.empty()){
+        vector<string> grm_id;
+        read_grm(res_grm_file, grm_id);
+        StrFunc::match(uni_id, grm_id, kp);
+        int res_pos = _r_indx.size() - 1;
+        (_A[res_pos]) = eigenMatrix::Zero(_n, _n);
+
+        #pragma omp parallel for
+        for (int j = 0; j < _n; j++) {
+            for (int k = 0; k <= j; k++) {
+                if (kp[j] >= kp[k]) (_A[res_pos])(k, j) = (_A[res_pos])(j, k) = _grm(kp[j], kp[k]);
+                else (_A[res_pos])(k, j) = (_A[res_pos])(j, k) = _grm(kp[k], kp[j]);
+            }
+        }
+        // print out the residual GRM
+        cout << "Printing out the residual GRM ..." << endl;
+        cout << (_A[res_pos]) << endl;
+        cout << "Done." << endl;
     }
 
     // GE interaction
