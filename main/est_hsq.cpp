@@ -1922,18 +1922,21 @@ void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string kee
     vector<eigenVector> RhsSdVec(_n);
     
     Lhs(0,0) = n_obs; // X'X for intercept
-    for (i = 0; i < _n; ++i) {
+    // initialize
+    for (i = 0; i < _n; i++) {
         LhsVec[i].setZero(n_term, n_term);
+        RhsCpVec[i].setZero(n_term);
+        RhsSdVec[i].setZero(n_term);
+    }
+
+    for (i = 0; i < _n; ++i) {
         if (fit_full) {
             LhsVec[i](0,0) = _n * 2 - 1;
             iter_limit = _n;
         } else {
-            LhsVec[i](0,0) = _n-1;
+            LhsVec[i](0,0) = _n - 1;
             iter_limit = i;
         }
-        RhsCpVec[i].setZero(n_term);
-        RhsSdVec[i].setZero(n_term);
-        
         for (j = 0; j < iter_limit; ++j) {
             z_cp = _y[i]*_y[j];
             z_sd = (_y[i] - _y[j])*(_y[i] - _y[j]);
