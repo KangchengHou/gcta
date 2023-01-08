@@ -113,6 +113,8 @@ void option(int option_num, char* option_str[])
     bool reml_allow_constrain_run = false;
     double prevalence = -2.0, prevalence2 = -2.0;
     bool reml_flag = false, pred_rand_eff = false, est_fix_eff = false, blup_snp_flag = false, no_constrain = false, reml_lrt_flag = false, no_lrt = false, bivar_reml_flag = false, ignore_Ce = false, within_family = false, reml_bending = false, HE_reg_flag = false, reml_diag_one = false, bivar_no_constrain = false;
+    // HE-reg options
+    bool HE_reg_nostdphen_flag = false, HE_reg_full_flag = false;
     int reml_diagV_adj = 0;
     double reml_diag_mul = 0.01;
     int reml_inv_method = 0;
@@ -617,6 +619,12 @@ void option(int option_num, char* option_str[])
             HE_reg_flag = true;
             thread_flag = true;
             LOGGER << "--HEreg" << endl;
+        } else if (strcmp(argv[i], "--HEreg-nostdphen") == 0) {
+            HE_reg_nostdphen_flag = true;
+            LOGGER << "--HEreg-nostdphen" << endl;
+        } else if (strcmp(argv[i], "--HEreg-full") == 0) {
+            HE_reg_full_flag = true;
+            LOGGER << "--HEreg-full" << endl;
         } else if (strcmp(argv[i], "--HEreg-bivar") == 0) {
             HE_reg_bivar_flag = true;
             thread_flag = true;
@@ -1454,7 +1462,7 @@ void option(int option_num, char* option_str[])
         else if (fst_flag) pter_gcta->Fst(subpopu_file);
         else if (mlma_flag) pter_gcta->mlma(grm_file, m_grm_flag, subtract_grm_file, phen_file, qcovar_file, covar_file, mphen, MaxIter, reml_priors, reml_priors_var, no_constrain, within_family, make_grm_inbred_flag, mlma_no_adj_covar);
         else if (mlma_loco_flag) pter_gcta->mlma_loco(phen_file, qcovar_file, covar_file, mphen, MaxIter, reml_priors, reml_priors_var, no_constrain, make_grm_inbred_flag, mlma_no_adj_covar);
-    } else if (HE_reg_flag) pter_gcta->HE_reg(grm_file, m_grm_flag, phen_file, kp_indi_file, rm_indi_file, mphen);
+    } else if (HE_reg_flag) pter_gcta->HE_reg(grm_file, m_grm_flag, phen_file, kp_indi_file, rm_indi_file, mphen, HE_reg_nostdphen_flag, HE_reg_full_flag);
     else if (HE_reg_bivar_flag) pter_gcta->HE_reg_bivar(grm_file, m_grm_flag, phen_file, kp_indi_file, rm_indi_file, mphen, mphen2);
     else if ((reml_flag || bivar_reml_flag) && phen_file.empty()) LOGGER.e(0, "\n a phenotype file is required for reml analysis.\n");
     else if (bivar_reml_flag) {
