@@ -1813,10 +1813,11 @@ void gcta::output_blup_snp(eigenMatrix &b_SNP) {
     LOGGER << "BLUP solutions of SNP effects for " << _include.size() << " SNPs have been saved in the file [" + o_b_snp_file + "]." << endl;
 }
 
-void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string keep_indi_file, string remove_indi_file, int mphen) {
+void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string keep_indi_file, string remove_indi_file, int mphen, bool no_std_phen, bool fit_full) {
     // a memory-efficient HE regression that can fit multiple GRMs
     
     int i=0, j=0, k=0, l=0, r=0, c=0, ii=0, jj=0;
+    int iter_limit = 0; // limit of iteration, used with `fit_full`
     stringstream errmsg;
     vector<string> phen_ID, grm_id, grm_files;
     vector< vector<string> > phen_buf; // save individuals by column
@@ -1883,11 +1884,17 @@ void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string kee
     
     LOGGER << "\nPerforming Haseman-Elston regression ...\n" << endl;
 
-    // normalise phenotype
-    LOGGER << "Standardising the phenotype ..." << endl;
-    _y.array() -= _y.mean();
-    _y.array() /= sqrt(_y.squaredNorm() / (_n - 1.0));
-    
+    if (no_std_phen) {
+        // print mean and std of the phenotype
+        LOGGER << "No standardisation of the phenotype will be performed."
+        LOGGER << "Mean and SD of the phenotype: " << _y.mean() << " (" << sqrt(_y.squaredNorm() / (_n - 1.0)) ")" << endl;
+    } else {
+        // normalise phenotype
+        LOGGER << "Standardising the phenotype ..." << endl;
+        _y.array() -= _y.mean();
+        _y.array() /= sqrt(_y.squaredNorm() / (_n - 1.0));
+    }
+
     // grm_kp contains the rows to keep in order of uni_id, which is a subset of and in the same order of grm_id
     vector<int> grm_kp;
     StrFunc::match(uni_id, grm_id, grm_kp);
@@ -1895,7 +1902,12 @@ void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string kee
     
     // initialize OLS normal equations for each individual
     // to use jackknife to estimate SE of heritability estimate
-    int long n_obs = 0.5*long(_n)*(long(_n)-1);
+    int long n_obs = 0;
+    if (fit_full) {
+        n_obs = long(_n)*long(_n);
+    } else {
+        n_obs = 0.5*long(_n)*(long(_n)-1);
+    }
     double z_cp=0, z_sd=0, totalSS_cp=0, totalSS_sd=0;
     
     eigenMatrix Lhs;    // X'X
@@ -1912,10 +1924,17 @@ void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string kee
     Lhs(0,0) = n_obs; // X'X for intercept
     for (i = 0; i < _n; ++i) {
         LhsVec[i].setZero(n_term, n_term);
-        LhsVec[i](0,0) = _n-1;
+        if (fit_full) {
+            LhsVec[i](0,0) = _n * 2 - 1;
+            iter_limit = _n;
+        } else {
+            LhsVec[i](0,0) = _n-1;
+            iter_limit = i;
+        }
         RhsCpVec[i].setZero(n_term);
         RhsSdVec[i].setZero(n_term);
-        for (j = 0; j < i; ++j) {
+        
+        for (j = 0; j < iter_limit; ++j) {
             z_cp = _y[i]*_y[j];
             z_sd = (_y[i] - _y[j])*(_y[i] - _y[j]);
             Rhs_cp[0] += z_cp;
@@ -1929,56 +1948,107 @@ void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string kee
         }
     }
     
-    
     // Fill GRMij into the ordinary least squares equations without reading the whole GRM(s) into memory
     LOGGER << "Constructing ordinary least squares equations ..." << endl;
     eigenVector aij(n_grm);
     int size = sizeof (float);
     float f_buf = 0.0;
     float grm_cp, r_cp, r_sd;
-    for (i = 0, ii = 0; i < size_grm; i++) {
-        if (i != grm_kp[ii]) {
-            for (j = 0; j <= i; j++) {
-                for (k = 0; k < n_grm; k++) {
-                    (*A_bin[k]).read((char*) &f_buf, size);
+    
+    if (!fit_full){
+        for (i = 0, ii = 0; i < size_grm; i++) {
+            if (i != grm_kp[ii]) {
+                // skip mismatched rows
+                for (j = 0; j <= i; j++) {
+                    for (k = 0; k < n_grm; k++) {
+                        (*A_bin[k]).read((char*) &f_buf, size);
+                    }
                 }
+            }
+            else {
+                for (j = 0, jj = 0; j <= i; j++) {
+                    if (j != grm_kp[jj] || j==i) {
+                        for (k = 0; k < n_grm; k++) {
+                            (*A_bin[k]).read((char*) &f_buf, size);
+                        }
+                    } else {
+                        for (k = 0; k < n_grm; k++) {
+                            (*A_bin[k]).read((char*) &f_buf, size);
+                            aij[k] = f_buf;
+                            r = k + 1;
+                            Lhs(0,r) = Lhs(r,0) += aij[k];
+                            LhsVec[ii](0,r) = LhsVec[ii](r,0) += aij[k];
+                            LhsVec[jj](0,r) = LhsVec[jj](r,0) += aij[k];
+                            for (l = 0; l <= k; l++) {
+                                c = l + 1;
+                                grm_cp = aij[k] * aij[l];
+                                Lhs(c,r) = Lhs(r,c) += grm_cp;
+                                LhsVec[ii](c,r) = LhsVec[ii](r,c) += grm_cp;
+                                LhsVec[jj](c,r) = LhsVec[jj](r,c) += grm_cp;
+                            }
+                            r_cp = aij[k] * _y[ii] * _y[jj];
+                            r_sd = aij[k] *(_y[ii] - _y[jj])*(_y[ii] - _y[jj]);
+                            Rhs_cp[r] += r_cp;
+                            Rhs_sd[r] += r_sd;
+                            RhsCpVec[ii][r] += r_cp;
+                            RhsCpVec[jj][r] += r_cp;
+                            RhsSdVec[ii][r] += r_sd;
+                            RhsSdVec[jj][r] += r_sd;
+                        }
+                        ++jj;
+                    }
+                }
+                ++ii;
             }
         }
-        else {
-            for (j = 0, jj = 0; j <= i; j++) {
-                if (j != grm_kp[jj] || j==i) {
+    } else {
+        float multiplier = 0.0;
+        for (i = 0, ii = 0; i < size_grm; i++) {
+            if (i != grm_kp[ii]) {
+                // skip mismatched rows
+                for (j = 0; j <= i; j++) {
                     for (k = 0; k < n_grm; k++) {
                         (*A_bin[k]).read((char*) &f_buf, size);
                     }
-                }
-                else {
-                    for (k = 0; k < n_grm; k++) {
-                        (*A_bin[k]).read((char*) &f_buf, size);
-                        aij[k] = f_buf;
-                        r = k + 1;
-                        Lhs(0,r) = Lhs(r,0) += aij[k];
-                        LhsVec[ii](0,r) = LhsVec[ii](r,0) += aij[k];
-                        LhsVec[jj](0,r) = LhsVec[jj](r,0) += aij[k];
-                        for (l = 0; l <= k; l++) {
-                            c = l + 1;
-                            grm_cp = aij[k] * aij[l];
-                            Lhs(c,r) = Lhs(r,c) += grm_cp;
-                            LhsVec[ii](c,r) = LhsVec[ii](r,c) += grm_cp;
-                            LhsVec[jj](c,r) = LhsVec[jj](r,c) += grm_cp;
-                        }
-                        r_cp = aij[k] * _y[ii] * _y[jj];
-                        r_sd = aij[k] *(_y[ii] - _y[jj])*(_y[ii] - _y[jj]);
-                        Rhs_cp[r] += r_cp;
-                        Rhs_sd[r] += r_sd;
-                        RhsCpVec[ii][r] += r_cp;
-                        RhsCpVec[jj][r] += r_cp;
-                        RhsSdVec[ii][r] += r_sd;
-                        RhsSdVec[jj][r] += r_sd;
-                    }
-                    ++jj;
                 }
             }
-            ++ii;
+            else {
+                for (j = 0, jj = 0; j <= i; j++) {
+                    if (j != grm_kp[jj]) {
+                        for (k = 0; k < n_grm; k++) {
+                            (*A_bin[k]).read((char*) &f_buf, size);
+                        }
+                    } else {
+                        for (k = 0; k < n_grm; k++) {
+                            (*A_bin[k]).read((char*) &f_buf, size);
+                            aij[k] = f_buf;
+                            // diagonal element multiply by 1, off-diagonal multiply by 2
+                            multiplier = (i==j) ? 1.0 : 2.0;
+                            r = k + 1;
+                            Lhs(0,r) = Lhs(r,0) += aij[k] * multiplier;
+                            LhsVec[ii](0,r) = LhsVec[ii](r,0) += aij[k] * multiplier;
+                            LhsVec[jj](0,r) = LhsVec[jj](r,0) += aij[k] * multiplier;
+                            for (l = 0; l <= k; l++) {
+                                c = l + 1;
+                                grm_cp = aij[k] * aij[l] * multiplier;
+                                Lhs(c,r) = Lhs(r,c) += grm_cp;
+                                LhsVec[ii](c,r) = LhsVec[ii](r,c) += grm_cp;
+                                LhsVec[jj](c,r) = LhsVec[jj](r,c) += grm_cp;
+                            }
+                            r_cp = multiplier * aij[k] * _y[ii] * _y[jj];
+                            r_sd = multiplier * aij[k] *(_y[ii] - _y[jj])*(_y[ii] - _y[jj]);
+                            Rhs_cp[r] += r_cp;
+                            Rhs_sd[r] += r_sd;
+                            RhsCpVec[ii][r] += r_cp;
+                            RhsCpVec[jj][r] += r_cp;
+                            RhsSdVec[ii][r] += r_sd;
+                            RhsSdVec[jj][r] += r_sd;
+                        }
+                        ++jj;
+                    }
+                }
+                ++ii;
+            }
         }
     }
 
