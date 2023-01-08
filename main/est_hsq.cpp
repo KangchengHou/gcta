@@ -1886,8 +1886,8 @@ void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string kee
 
     if (no_std_phen) {
         // print mean and std of the phenotype
-        LOGGER << "No standardisation of the phenotype will be performed."
-        LOGGER << "Mean and SD of the phenotype: " << _y.mean() << " (" << sqrt(_y.squaredNorm() / (_n - 1.0)) ")" << endl;
+        LOGGER << "No standardisation of the phenotype will be performed." << endl;
+        LOGGER << "Mean and SD of the phenotype: " << _y.mean() << " (" << sqrt(_y.squaredNorm() / (_n - 1.0)) << ")" << endl;
     } else {
         // normalise phenotype
         LOGGER << "Standardising the phenotype ..." << endl;
