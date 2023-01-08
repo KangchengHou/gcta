@@ -435,7 +435,7 @@ void gcta::fit_reml(string grm_file, string phen_file, string qcovar_file, strin
     }
     if(!res_grm_file.empty()){
         vector<string> grm_id;
-        read_grm(res_grm_file, grm_id);
+        read_grm(res_grm_file, grm_id, true, false, !(adj_grm_fac > -1.0));
         StrFunc::match(uni_id, grm_id, kp);
         int res_pos = _r_indx.size() - 1;
         (_A[res_pos]) = eigenMatrix::Zero(_n, _n);
@@ -447,10 +447,10 @@ void gcta::fit_reml(string grm_file, string phen_file, string qcovar_file, strin
                 else (_A[res_pos])(k, j) = (_A[res_pos])(j, k) = _grm(kp[k], kp[j]);
             }
         }
-        // print out the residual GRM
-        cout << "Printing out the residual GRM ..." << endl;
-        cout << (_A[res_pos]) << endl;
-        cout << "Done." << endl;
+        // // print out the residual GRM
+        // cout << "Printing out the residual GRM ..." << endl;
+        // cout << (_A[res_pos]) << endl;
+        // cout << "Done." << endl;
     }
 
     // GE interaction

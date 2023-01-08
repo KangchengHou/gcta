@@ -771,7 +771,7 @@ void option(int option_num, char* option_str[])
         } else if (strcmp(argv[i], "--reml-res-grm") == 0){
             res_grm_file = argv[++i];
             LOGGER << "--reml-res-grm " << res_grm_file << endl;
-            CommFunc::FileExist(res_grm_file);
+            CommFunc::FileExist(res_grm_file + ".grm.bin");
         } else if (strcmp(argv[i], "--gxqe") == 0) {
             qgxe_file = argv[++i];
             LOGGER << "--gxqe " << qgxe_file << endl;
