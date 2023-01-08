@@ -1943,9 +1943,9 @@ void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string kee
             Rhs_cp[0] += z_cp;
             Rhs_sd[0] += z_sd;
             RhsCpVec[i][0] += z_cp;
+            if (i != j) RhsCpVec[j][0] += z_cp;
             RhsSdVec[i][0] += z_sd;
-            RhsCpVec[j][0] += z_cp;
-            RhsSdVec[j][0] += z_sd;
+            if (i != j) RhsSdVec[j][0] += z_sd;
             totalSS_cp += z_cp * z_cp;
             totalSS_sd += z_sd * z_sd;
         }
@@ -2022,30 +2022,34 @@ void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string kee
                             (*A_bin[k]).read((char*) &f_buf, size);
                         }
                     } else {
+                        // diagonal element multiply by 1, off-diagonal multiply by 2
+                        multiplier = (i==j) ? 1.0 : 2.0;
                         for (k = 0; k < n_grm; k++) {
                             (*A_bin[k]).read((char*) &f_buf, size);
                             aij[k] = f_buf;
-                            // diagonal element multiply by 1, off-diagonal multiply by 2
-                            multiplier = (i==j) ? 1.0 : 2.0;
                             r = k + 1;
                             Lhs(0,r) = Lhs(r,0) += aij[k] * multiplier;
                             LhsVec[ii](0,r) = LhsVec[ii](r,0) += aij[k] * multiplier;
-                            LhsVec[jj](0,r) = LhsVec[jj](r,0) += aij[k] * multiplier;
+                            if (i != j) LhsVec[jj](0,r) = LhsVec[jj](r,0) += aij[k] * multiplier;
+                            // if((ii <= 1|| jj == 0) && (k == 0)){
+                            //     cout << k << "-th GRM: (" << i << "," << j << "):" << LhsVec[0](0, r) << " + " << multiplier << " * " << aij[k];
+                            //     cout << " -> " << LhsVec[0](0, r) << endl;
+                            // }
                             for (l = 0; l <= k; l++) {
                                 c = l + 1;
                                 grm_cp = aij[k] * aij[l] * multiplier;
                                 Lhs(c,r) = Lhs(r,c) += grm_cp;
                                 LhsVec[ii](c,r) = LhsVec[ii](r,c) += grm_cp;
-                                LhsVec[jj](c,r) = LhsVec[jj](r,c) += grm_cp;
+                                if (i != j) LhsVec[jj](c,r) = LhsVec[jj](r,c) += grm_cp;
                             }
                             r_cp = multiplier * aij[k] * _y[ii] * _y[jj];
                             r_sd = multiplier * aij[k] *(_y[ii] - _y[jj])*(_y[ii] - _y[jj]);
                             Rhs_cp[r] += r_cp;
                             Rhs_sd[r] += r_sd;
                             RhsCpVec[ii][r] += r_cp;
-                            RhsCpVec[jj][r] += r_cp;
+                            if (i != j) RhsCpVec[jj][r] += r_cp;
                             RhsSdVec[ii][r] += r_sd;
-                            RhsSdVec[jj][r] += r_sd;
+                            if (i != j) RhsSdVec[jj][r] += r_sd;
                         }
                         ++jj;
                     }
@@ -2073,6 +2077,7 @@ void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string kee
     eigenVector se_sd = (invLhs.diagonal() * vare_sd).array().sqrt();
     
     LOGGER << "\nLeft-hand side of OLS equations (X'X)\n" << Lhs  << endl << endl;
+    LOGGER << "Right-hand side of OLS equations (X'Y)\n" << Rhs_cp << endl << endl;
     //LOGGER << "vare_cp " << vare_cp << endl;
     //LOGGER << "vare_sd " << vare_sd << endl << endl;
     
@@ -2101,6 +2106,13 @@ void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string kee
     eigenMatrix betaCpMat(_n, n_term);
     eigenMatrix betaSdMat(_n, n_term);
     for (i=0; i<_n; ++i) {
+        if (i < 2){
+            cout << "jackknife sample" << "(" << uni_id[0] << ")" << endl;
+            cout << "Lhs" << endl;
+            cout << (Lhs - LhsVec[i]) << endl;
+            cout << "Rhs_cp" << endl;
+            cout << (Rhs_cp - RhsCpVec[i]) << endl;
+        }
         eigenMatrix invLhsi = (Lhs - LhsVec[i]).inverse();
         betaCpMat.row(i) = invLhsi*(Rhs_cp - RhsCpVec[i]);
         betaSdMat.row(i) = invLhsi*(Rhs_sd - RhsSdVec[i]);
