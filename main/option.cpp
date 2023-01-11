@@ -121,6 +121,7 @@ void option(int option_num, char* option_str[])
 
     bool cv_blup = false;
     bool HE_reg_bivar_flag = false;
+    bool no_e_grm = false;
     string weight_file = "";
     string res_grm_file = "";
     string phen_file = "", qcovar_file = "", covar_file = "", qgxe_file = "", gxe_file = "", blup_indi_file = "";
@@ -780,6 +781,9 @@ void option(int option_num, char* option_str[])
             res_grm_file = argv[++i];
             LOGGER << "--reml-res-grm " << res_grm_file << endl;
             CommFunc::FileExist(res_grm_file + ".grm.bin");
+        } else if (strcmp(argv[i], "--reml-no-e-grm") == 0) {
+            no_e_grm = true;
+            LOGGER << "--reml-no-e-grm" << endl;
         } else if (strcmp(argv[i], "--gxqe") == 0) {
             qgxe_file = argv[++i];
             LOGGER << "--gxqe " << qgxe_file << endl;
@@ -1470,7 +1474,7 @@ void option(int option_num, char* option_str[])
         pter_gcta->fit_bivar_reml(grm_file, phen_file, qcovar_file, covar_file, kp_indi_file, rm_indi_file, update_sex_file, mphen, mphen2, grm_cutoff, grm_adj_fac, dosage_compen, m_grm_flag, pred_rand_eff, est_fix_eff, reml_mtd, MaxIter, reml_priors, reml_priors_var, reml_drop, no_lrt, prevalence, prevalence2, no_constrain, ignore_Ce, fixed_rg_val, bivar_no_constrain);
     } else if (reml_flag) {
         pter_gcta->set_cv_blup(cv_blup);
-        pter_gcta->fit_reml(grm_file, phen_file, qcovar_file, covar_file, qgxe_file, gxe_file, kp_indi_file, rm_indi_file, update_sex_file, mphen, grm_cutoff, grm_adj_fac, dosage_compen, m_grm_flag, pred_rand_eff, est_fix_eff, reml_mtd, MaxIter, reml_priors, reml_priors_var, reml_drop, no_lrt, prevalence, no_constrain, mlma_flag, within_family, reml_bending, reml_diag_one, weight_file, res_grm_file);
+        pter_gcta->fit_reml(grm_file, phen_file, qcovar_file, covar_file, qgxe_file, gxe_file, kp_indi_file, rm_indi_file, update_sex_file, mphen, grm_cutoff, grm_adj_fac, dosage_compen, m_grm_flag, pred_rand_eff, est_fix_eff, reml_mtd, MaxIter, reml_priors, reml_priors_var, reml_drop, no_lrt, prevalence, no_constrain, mlma_flag, within_family, reml_bending, reml_diag_one, weight_file, res_grm_file, no_e_grm);
     } else if (grm_flag || m_grm_flag) {
         if (pca_flag) pter_gcta->pca(grm_file, kp_indi_file, rm_indi_file, grm_cutoff, m_grm_flag, out_pc_num);
         else if (make_grm_flag) pter_gcta->save_grm(grm_file, kp_indi_file, rm_indi_file, update_sex_file, grm_cutoff, grm_adj_fac, dosage_compen, m_grm_flag, grm_out_bin_flag);

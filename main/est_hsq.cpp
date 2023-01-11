@@ -235,7 +235,7 @@ void read_weight(string phen_file, vector<string> &phen_ID, vector<double> &weig
 }
 
 
-void gcta::fit_reml(string grm_file, string phen_file, string qcovar_file, string covar_file, string qGE_file, string GE_file, string keep_indi_file, string remove_indi_file, string sex_file, int mphen, double grm_cutoff, double adj_grm_fac, int dosage_compen, bool m_grm_flag, bool pred_rand_eff, bool est_fix_eff, int reml_mtd, int MaxIter, vector<double> reml_priors, vector<double> reml_priors_var, vector<int> drop, bool no_lrt, double prevalence, bool no_constrain, bool mlmassoc, bool within_family, bool reml_bending, bool reml_diag_one, string weight_file, string res_grm_file) {
+void gcta::fit_reml(string grm_file, string phen_file, string qcovar_file, string covar_file, string qGE_file, string GE_file, string keep_indi_file, string remove_indi_file, string sex_file, int mphen, double grm_cutoff, double adj_grm_fac, int dosage_compen, bool m_grm_flag, bool pred_rand_eff, bool est_fix_eff, int reml_mtd, int MaxIter, vector<double> reml_priors, vector<double> reml_priors_var, vector<int> drop, bool no_lrt, double prevalence, bool no_constrain, bool mlmassoc, bool within_family, bool reml_bending, bool reml_diag_one, string weight_file, string res_grm_file, bool no_e_grm) {
     _within_family = within_family;
     _reml_mtd = reml_mtd;
     _reml_max_iter = MaxIter;
@@ -334,12 +334,15 @@ void gcta::fit_reml(string grm_file, string phen_file, string qcovar_file, strin
         }
     }
 
-
+    int fit_e_grm = 1 - no_e_grm;
+    if (no_e_grm) {
+        cout << "Note: the option --no-e-grm is specified. The GRM for the environmental factors will not be fitted. This function is not tested extensively so monitor the output very carefully." << endl;
+    }
     int pos = 0;
     _r_indx.clear();
     vector<int> kp;
     if (grm_flag) {
-        for (int i = 0; i < 1 + qE_fac_num + E_fac_num + 1; i++) _r_indx.push_back(i);
+        for (int i = 0; i < 1 + qE_fac_num + E_fac_num + fit_e_grm; i++) _r_indx.push_back(i);
         if (!no_lrt) drop_comp(drop);
         _A.resize(_r_indx.size());
         if (mlmassoc) StrFunc::match(uni_id, grm_id, kp);
@@ -367,7 +370,7 @@ void gcta::fit_reml(string grm_file, string phen_file, string qcovar_file, strin
         _grm.resize(0, 0);
     } else if (m_grm_flag) {
         if (!sex_file.empty()) update_sex(sex_file);
-        for (int i = 0; i < (1 + qE_fac_num + E_fac_num) * grm_files.size() + 1; i++) _r_indx.push_back(i);
+        for (int i = 0; i < (1 + qE_fac_num + E_fac_num) * grm_files.size() + fit_e_grm; i++) _r_indx.push_back(i);
         if (!no_lrt) drop_comp(drop);
         _A.resize(_r_indx.size());
         string prev_file = grm_files[0];
@@ -412,7 +415,17 @@ void gcta::fit_reml(string grm_file, string phen_file, string qcovar_file, strin
         _r_indx.push_back(0);
         _A.resize(_r_indx.size());
     }
-    _A[_r_indx.size() - 1] = eigenMatrix::Identity(_n, _n);
+    if (!no_e_grm){
+        _A[_r_indx.size() - 1] = eigenMatrix::Identity(_n, _n);
+    }
+    // weight_file or res_grm_file cannot be used together with no_e_grm
+    if (no_e_grm){
+        if (!weight_file.empty() || !res_grm_file.empty()){
+            // make sure weight_file and res_grm_file is empty
+            LOGGER.e(0, "no_e_grm cannot be used together with weight_file or res_grm_file.");
+        }
+    }
+    
     if(!weight_file.empty()){
         // contruct weight
         VectorXd v_weight(_n);
@@ -523,7 +536,10 @@ void gcta::fit_reml(string grm_file, string phen_file, string qcovar_file, strin
             _hsq_name.push_back("V(G" + strstrm1.str() + "xE" + strstrm2.str() + ")" + "/Vp");
         }
     }
-    _var_name.push_back("V(e)");
+    if (!no_e_grm) {
+        _var_name.push_back("V(e)");
+    }
+    
 
     LOGGER << _n << " individuals are in common in these files." << endl;
 
