@@ -808,7 +808,7 @@ void gcta::reml(bool pred_rand_eff, bool est_fix_eff, vector<double> &reml_prior
     double sum_hsq = 0.0, var_sum_hsq = 0.0;
     if (!_bivar_reml && _r_indx.size() > 2) calcu_sum_hsq(Vp, VarVp, sum_hsq, var_sum_hsq, varcmp, Hi);
     LOGGER << "\nSummary result of REML analysis:" << endl;
-    LOGGER << "Source\tVariance\tSE" << std::fixed << LOGGER.setprecision(6) << endl;
+    LOGGER << "Source\tVariance\tSE" << std::scientific << LOGGER.setprecision(6) << endl;
     for (i = 0; i < _r_indx.size(); i++) LOGGER << _var_name[i] << "\t" << varcmp[i] << "\t" << sqrt(Hi(i, i)) << endl;
     if (_bivar_reml) {
         LOGGER << "Vp_tr1\t" << Vp << "\t" << sqrt(VarVp) << endl;
@@ -868,7 +868,7 @@ void gcta::reml(bool pred_rand_eff, bool est_fix_eff, vector<double> &reml_prior
     string reml_rst_file = _out + ".hsq";
     ofstream o_reml(reml_rst_file.c_str());
     if (!o_reml) LOGGER.e(0, "cannot open the file [" + reml_rst_file + "] to write.");
-    o_reml << "Source\tVariance\tSE" << setiosflags(ios::fixed) << setprecision(6) << endl;
+    o_reml << "Source\tVariance\tSE" << setiosflags(ios::scientific) << setprecision(6) << endl;
     for (i = 0; i < _r_indx.size(); i++) o_reml << _var_name[i] << "\t" << varcmp[i] << "\t" << sqrt(Hi(i, i)) << endl;
     if (_bivar_reml) {
         o_reml << "Vp_tr1\t" << Vp << "\t" << sqrt(VarVp) << endl;
