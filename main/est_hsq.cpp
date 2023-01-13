@@ -2145,7 +2145,11 @@ void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string kee
     
     jk_se_cp = jk_se_cp.array().sqrt();
     jk_se_sd = jk_se_sd.array().sqrt();
-    
+
+    // calculate variance-covariance matrix for jk_cp using betaCpMat
+    eigenMatrix jk_cov_cp = (betaCpMat - ones*jk_mean_cp.transpose()).transpose()*(betaCpMat - ones*jk_mean_cp.transpose()) * double(_n-1.0) / double(_n);
+    // jk_cov_sd is not needed for now
+
     eigenVector betaSumCp = betaCpMat.transpose().colwise().sum();
     eigenVector betaSumSd = betaSdMat.transpose().colwise().sum();
     
@@ -2191,6 +2195,9 @@ void gcta::HE_reg(string grm_file, bool m_grm_flag, string phen_file, string kee
         ss << setw(16) << beta_cp[i] << setw(16) << se_cp[i] << setw(16) << jk_se_cp[i] << setw(16) << pval_cp[i] << setw(16) << jk_pval_cp[i] << endl;
     }
     if (n_grm>1) ss << setw(16) << "Sum of V(G)/Vp" << setw(16) << beta_sum_cp << setw(16) << se_sum_cp << setw(16) << jk_sum_se_cp << setw(16) << pval_sum_cp << setw(16) << jk_pval_sum_cp << endl;
+
+    // output HE-CP variance-covariance matrix
+    ss << "\nJackknife sampling variance/covariance" << endl << jk_cov_cp;
     ss << endl;
     ss << "HE-SD\n";
     ss << setw(16) << "Coefficient" << setw(16) << "Estimate" << setw(16) << "SE_OLS" << setw(16) << "SE_Jackknife" << setw(16) << "P_OLS" << setw(16) << "P_Jackknife" << endl;
